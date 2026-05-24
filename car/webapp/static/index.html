@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Карманный перекуп</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #ffffff;
+    --bg2:      #f5f5f5;
+    --bg3:      #ebebeb;
+    --text:     #111111;
+    --text2:    #666666;
+    --text3:    #999999;
+    --accent:   #2196F3;
+    --accent-l: #E3F2FD;
+    --accent-d: #1565C0;
+    --border:   rgba(0,0,0,0.1);
+    --success:  #4CAF50;
+    --warning:  #FF9800;
+    --danger:   #f44336;
+    --radius:   12px;
+    --radius-s: 8px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:       #1c1c1e;
+      --bg2:      #2c2c2e;
+      --bg3:      #3a3a3c;
+      --text:     #ffffff;
+      --text2:    #ababab;
+      --text3:    #6e6e6e;
+      --accent:   #2196F3;
+      --accent-l: #1a3a5c;
+      --accent-d: #90CAF9;
+      --border:   rgba(255,255,255,0.1);
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  /* ── Навигация ─────────────────────────────── */
+  .tab-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--bg);
+    border-top: 0.5px solid var(--border);
+    display: flex;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .tab-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 8px 0 6px;
+    color: var(--text3); font-size: 10px; cursor: pointer;
+    transition: color .2s;
+    border: none; background: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tab-item.active { color: var(--accent); }
+  .tab-icon { font-size: 22px; line-height: 1; margin-bottom: 3px; }
+
+  /* ── Экраны ────────────────────────────────── */
+  .screen {
+    display: none;
+    padding: 16px 16px 90px;
+    animation: fadeIn .2s ease;
+  }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ── Шапка ─────────────────────────────────── */
+  .page-header { margin-bottom: 20px; }
+  .page-title { font-size: 22px; font-weight: 700; color: var(--text); }
+  .page-sub { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+  /* ── Секция с лейблом ──────────────────────── */
+  .section-label {
+    font-size: 11px; font-weight: 600; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    margin: 18px 0 8px;
+  }
+
+  /* ── Кнопки-чипы (марки) ───────────────────── */
+  .chip-grid {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 4px;
+  }
+  .chip {
+    padding: 7px 14px; border-radius: 20px;
+    background: var(--bg2); border: 0.5px solid var(--border);
+    font-size: 13px; color: var(--text);
+    cursor: pointer; transition: all .15s;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .chip:active { transform: scale(0.96); }
+  .chip.active {
+    background: var(--accent); color: #fff;
+    border-color: var(--accent);
+  }
+  .chip-more {
+    background: var(--bg2); color: var(--accent);
+    border: 0.5px solid var(--accent);
+  }
+
+  /* ── Поля ввода ────────────────────────────── */
+  .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fields-grid.single { grid-template-columns: 1fr; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field-label { font-size: 11px; color: var(--text2); font-weight: 500; }
+  .field input, .field select {
+    background: var(--bg2); border: 0.5px solid var(--border);
+    border-radius: var(--radius-s); padding: 10px 12px;
+    font-size: 14px; color: var(--text);
+    width: 100%; outline: none;
+    transition: border-color .2s;
+    -webkit-appearance: none;
+  }
+  .field input:focus { border-color: var(--accent); }
+
+  /* ── Регион ─────────────────────────────────── */
+  .region-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  }
+  .region-btn {
+    padding: 9px 8px; background: var(--bg2);
+    border: 0.5px solid var(--border); border-radius: var(--radius-s);
+    font-size: 13px; color: var(--text); text-align: center;
+    cursor: pointer; transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .region-btn:active { transform: scale(0.97); }
+  .region-btn.active { background: var(--accent-l); border-color: var(--accent); color: var(--accent-d); font-weight: 500; }
+
+  /* ── Мониторинг тогл ───────────────────────── */
+  .monitor-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg2); border-radius: var(--radius);
+    padding: 12px 14px; margin-top: 14px;
+  }
+  .monitor-info { flex: 1; }
+  .monitor-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .monitor-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .toggle-wrap { flex-shrink: 0; margin-left: 12px; }
+  .toggle {
+    width: 44px; height: 26px; border-radius: 13px;
+    background: var(--bg3); position: relative;
+    cursor: pointer; transition: background .2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .toggle::after {
+    content: ''; width: 20px; height: 20px; background: #fff;
+    border-radius: 50%; position: absolute; top: 3px; left: 3px;
+    transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* ── Кнопка поиска ─────────────────────────── */
+  .search-btn {
+    width: 100%; margin-top: 14px;
+    background: var(--accent); color: #fff;
+    border: none; border-radius: var(--radius);
+    padding: 14px; font-size: 16px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; gap: 8px;
+    transition: opacity .2s, transform .1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .search-btn:active { opacity: .85; transform: scale(.98); }
+  .search-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ── Карточки результатов ──────────────────── */
+  .results-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .results-count { font-size: 13px; color: var(--text2); }
+  .source-filter { display: flex; gap: 6px; }
+  .src-btn {
+    padding: 4px 10px; border-radius: 20px;
+    background: var(--bg2); border: 0.5px solid var(--border);
+    font-size: 12px; color: var(--text2); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .src-btn.active { background: var(--accent-l); color: var(--accent); border-color: var(--accent); }
+
+  .car-card {
+    background: var(--bg); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px;
+    margin-bottom: 10px; cursor: pointer;
+    text-decoration: none; display: block;
+    transition: transform .1s, box-shadow .1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .car-card:active { transform: scale(.99); }
+  .car-card-top { display: flex; align-items: flex-start; gap: 10px; }
+  .car-src-icon { font-size: 28px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+  .car-main { flex: 1; min-width: 0; }
+  .car-title { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.3; }
+  .car-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+  .src-badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 20px;
+    font-weight: 500;
+  }
+  .src-badge.autoru  { background: #FFF3E0; color: #E65100; }
+  .src-badge.avito   { background: #E8F5E9; color: #2E7D32; }
+  .src-badge.drom    { background: #FFF8E1; color: #F57F17; }
+  .car-price {
+    font-size: 16px; font-weight: 700; color: var(--accent);
+    margin-top: 8px;
+  }
+  .car-arrow { color: var(--text3); font-size: 18px; flex-shrink: 0; }
+
+  /* ── Пустое состояние ──────────────────────── */
+  .empty-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--text2);
+  }
+  .empty-icon { font-size: 52px; margin-bottom: 12px; }
+  .empty-title { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .empty-sub { font-size: 14px; line-height: 1.5; }
+
+  /* ── Лоадер ────────────────────────────────── */
+  .loader {
+    display: none; flex-direction: column;
+    align-items: center; padding: 50px 20px;
+  }
+  .loader.active { display: flex; }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--bg3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    margin-bottom: 14px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-text { font-size: 14px; color: var(--text2); }
+
+  /* ── Мониторы ──────────────────────────────── */
+  .monitor-card {
+    background: var(--bg2); border-radius: var(--radius);
+    padding: 14px; margin-bottom: 10px;
+    border: 0.5px solid var(--border);
+  }
+  .monitor-card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .monitor-card-params { font-size: 12px; color: var(--text2); line-height: 1.6; }
+  .monitor-card-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 10px; padding-top: 10px;
+    border-top: 0.5px solid var(--border);
+  }
+  .monitor-card-time { font-size: 11px; color: var(--text3); }
+  .del-btn {
+    background: none; border: none; color: var(--danger);
+    font-size: 12px; cursor: pointer; padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .del-btn:active { background: rgba(244,67,54,.1); }
+
+  /* ── Всплывающий тост ──────────────────────── */
+  .toast {
+    position: fixed; bottom: 80px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(0,0,0,.8); color: #fff;
+    padding: 10px 20px; border-radius: 20px;
+    font-size: 13px; opacity: 0;
+    transition: opacity .3s, transform .3s;
+    pointer-events: none; white-space: nowrap; z-index: 200;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Брендинг ──────────────────────────────── */
+  .brand-logo {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+  }
+  .brand-logo-icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: var(--accent); display: flex; align-items: center;
+    justify-content: center; font-size: 22px;
+  }
+  .brand-logo-text { font-size: 18px; font-weight: 700; }
+  .brand-logo-sub { font-size: 12px; color: var(--text2); }
+
+  /* ── История ───────────────────────────────── */
+  .history-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 0.5px solid var(--border);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .history-icon { font-size: 20px; color: var(--text3); }
+  .history-text { flex: 1; }
+  .history-query { font-size: 14px; color: var(--text); }
+  .history-date { font-size: 12px; color: var(--text3); margin-top: 1px; }
+  .history-arrow { color: var(--text3); font-size: 16px; }
+</style>
+</head>
+<body>
+
+<!-- ══ ЭКРАН: ПОИСК ══════════════════════════════ -->
+<div id="screen-search" class="screen active">
+  <div class="brand-logo">
+    <div class="brand-logo-icon">🚗</div>
+    <div>
+      <div class="brand-logo-text">Карманный перекуп</div>
+      <div class="brand-logo-sub">Поиск по Auto.ru · Avito · Drom.ru</div>
+    </div>
+  </div>
+
+  <div class="section-label">Марка</div>
+  <div class="chip-grid" id="brand-chips">
+    <div class="chip" data-val="Toyota" onclick="selectBrand(this)">Toyota</div>
+    <div class="chip" data-val="Kia" onclick="selectBrand(this)">Kia</div>
+    <div class="chip" data-val="Hyundai" onclick="selectBrand(this)">Hyundai</div>
+    <div class="chip" data-val="BMW" onclick="selectBrand(this)">BMW</div>
+    <div class="chip" data-val="Mercedes" onclick="selectBrand(this)">Mercedes</div>
+    <div class="chip" data-val="Lada" onclick="selectBrand(this)">Lada</div>
+    <div class="chip" data-val="Volkswagen" onclick="selectBrand(this)">VW</div>
+    <div class="chip" data-val="Audi" onclick="selectBrand(this)">Audi</div>
+    <div class="chip" data-val="Nissan" onclick="selectBrand(this)">Nissan</div>
+    <div class="chip" data-val="Haval" onclick="selectBrand(this)">Haval</div>
+    <div class="chip" data-val="Geely" onclick="selectBrand(this)">Geely</div>
+    <div class="chip" data-val="Skoda" onclick="selectBrand(this)">Skoda</div>
+  </div>
+  <div class="field" style="margin-top:8px">
+    <input id="brand-input" type="text" placeholder="Или напишите марку вручную..." oninput="onBrandInput(this)">
+  </div>
+
+  <div class="section-label">Модель</div>
+  <div class="field">
+    <input id="model" type="text" placeholder="Например: Camry, Rio, X5...">
+  </div>
+
+  <div class="section-label">Год выпуска</div>
+  <div class="fields-grid">
+    <div class="field">
+      <div class="field-label">От</div>
+      <input id="year-from" type="number" placeholder="2015" min="1970" max="2026">
+    </div>
+    <div class="field">
+      <div class="field-label">До</div>
+      <input id="year-to" type="number" placeholder="2023" min="1970" max="2026">
+    </div>
+  </div>
+
+  <div class="section-label">Пробег (км)</div>
+  <div class="fields-grid">
+    <div class="field">
+      <div class="field-label">От</div>
+      <input id="mileage-from" type="number" placeholder="0">
+    </div>
+    <div class="field">
+      <div class="field-label">До</div>
+      <input id="mileage-to" type="number" placeholder="150 000">
+    </div>
+  </div>
+
+  <div class="section-label">Цена (₽)</div>
+  <div class="fields-grid">
+    <div class="field">
+      <div class="field-label">От</div>
+      <input id="price-from" type="number" placeholder="500 000">
+    </div>
+    <div class="field">
+      <div class="field-label">До</div>
+      <input id="price-to" type="number" placeholder="3 000 000">
+    </div>
+  </div>
+
+  <div class="section-label">Регион</div>
+  <div class="region-grid" id="region-grid">
+    <div class="region-btn" data-val="Москва" onclick="selectRegion(this)">Москва</div>
+    <div class="region-btn" data-val="Санкт-Петербург" onclick="selectRegion(this)">Санкт-Петербург</div>
+    <div class="region-btn" data-val="Екатеринбург" onclick="selectRegion(this)">Екатеринбург</div>
+    <div class="region-btn" data-val="Краснодар" onclick="selectRegion(this)">Краснодар</div>
+    <div class="region-btn" data-val="Новосибирск" onclick="selectRegion(this)">Новосибирск</div>
+    <div class="region-btn" data-val="Казань" onclick="selectRegion(this)">Казань</div>
+    <div class="region-btn" data-val="Ростов-на-Дону" onclick="selectRegion(this)">Ростов-на-Дону</div>
+    <div class="region-btn" data-val="Челябинск" onclick="selectRegion(this)">Челябинск</div>
+    <div class="region-btn active" data-val="" onclick="selectRegion(this)" style="grid-column:span 2">🌍 Вся Россия</div>
+  </div>
+  <div class="field" style="margin-top:8px">
+    <input id="region-input" type="text" placeholder="Или введите свой регион...">
+  </div>
+
+  <div class="monitor-row">
+    <div class="monitor-info">
+      <div class="monitor-title">🔔 Мониторинг 24/7</div>
+      <div class="monitor-sub">Уведомление как только появится новое объявление</div>
+    </div>
+    <div class="toggle-wrap">
+      <div class="toggle" id="monitor-toggle" onclick="toggleMonitor()"></div>
+    </div>
+  </div>
+
+  <button class="search-btn" id="search-btn" onclick="doSearch()">
+    🔍 Найти автомобили
+  </button>
+</div>
+
+
+<!-- ══ ЭКРАН: РЕЗУЛЬТАТЫ ══════════════════════════ -->
+<div id="screen-results" class="screen">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+    <button onclick="showScreen('search')" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text2);padding:0">←</button>
+    <div>
+      <div class="page-title" id="results-title">Результаты</div>
+      <div class="page-sub" id="results-sub">Ищем на всех площадках...</div>
+    </div>
+  </div>
+
+  <div class="loader active" id="loader">
+    <div class="spinner"></div>
+    <div class="loader-text">Ищем на Auto.ru, Avito, Drom.ru...</div>
+  </div>
+
+  <div id="results-container"></div>
+</div>
+
+
+<!-- ══ ЭКРАН: МОНИТОРЫ ════════════════════════════ -->
+<div id="screen-monitors" class="screen">
+  <div class="page-header">
+    <div class="page-title">Мониторинг</div>
+    <div class="page-sub">Активные запросы для слежения</div>
+  </div>
+  <div id="monitors-container">
+    <div class="empty-state">
+      <div class="empty-icon">🔔</div>
+      <div class="empty-title">Нет активных мониторов</div>
+      <div class="empty-sub">Сделайте поиск и включите мониторинг — бот будет присылать новые объявления автоматически</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ ЭКРАН: ИСТОРИЯ ════════════════════════════ -->
+<div id="screen-history" class="screen">
+  <div class="page-header">
+    <div class="page-title">История поиска</div>
+    <div class="page-sub">Ваши последние запросы</div>
+  </div>
+  <div id="history-container">
+    <div class="empty-state">
+      <div class="empty-icon">🕐</div>
+      <div class="empty-title">История пуста</div>
+      <div class="empty-sub">Здесь появятся ваши прошлые поисковые запросы</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ НИЖНЯЯ НАВИГАЦИЯ ═══════════════════════════ -->
+<div class="tab-bar">
+  <button class="tab-item active" id="tab-search" onclick="showScreen('search')">
+    <span class="tab-icon">🔍</span>Поиск
+  </button>
+  <button class="tab-item" id="tab-results" onclick="showScreen('results')">
+    <span class="tab-icon">🚗</span>Результаты
+  </button>
+  <button class="tab-item" id="tab-monitors" onclick="showScreen('monitors')">
+    <span class="tab-icon">🔔</span>Мониторинг
+  </button>
+  <button class="tab-item" id="tab-history" onclick="showScreen('history')">
+    <span class="tab-icon">🕐</span>История
+  </button>
+</div>
+
+<!-- Тост -->
+<div class="toast" id="toast"></div>
+
+
+<script>
+// ── Telegram WebApp ────────────────────────────────
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+}
+
+const userId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user
+  ? tg.initDataUnsafe.user.id
+  : null;
+
+// ── Состояние ──────────────────────────────────────
+let selectedBrand  = '';
+let selectedRegion = '';
+let monitorEnabled = false;
+let allResults     = [];
+let activeFilter   = 'all';
+let history        = JSON.parse(localStorage.getItem('search_history') || '[]');
+
+// ── Экраны ─────────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  const tab = document.getElementById('tab-' + name);
+  if (tab) tab.classList.add('active');
+
+  if (name === 'monitors') loadMonitors();
+  if (name === 'history')  renderHistory();
+}
+
+// ── Марка ──────────────────────────────────────────
+function selectBrand(el) {
+  document.querySelectorAll('#brand-chips .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  selectedBrand = el.dataset.val;
+  document.getElementById('brand-input').value = '';
+}
+
+function onBrandInput(el) {
+  if (el.value.trim()) {
+    document.querySelectorAll('#brand-chips .chip').forEach(c => c.classList.remove('active'));
+    selectedBrand = el.value.trim();
+  } else {
+    selectedBrand = '';
+  }
+}
+
+// ── Регион ─────────────────────────────────────────
+function selectRegion(el) {
+  document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  selectedRegion = el.dataset.val;
+  document.getElementById('region-input').value = '';
+}
+
+document.getElementById('region-input').addEventListener('input', function() {
+  if (this.value.trim()) {
+    document.querySelectorAll('.region-btn').forEach(b => b.classList.remove('active'));
+    selectedRegion = this.value.trim();
+  } else {
+    selectedRegion = '';
+  }
+});
+
+// ── Мониторинг тогл ────────────────────────────────
+function toggleMonitor() {
+  monitorEnabled = !monitorEnabled;
+  const tog = document.getElementById('monitor-toggle');
+  tog.classList.toggle('on', monitorEnabled);
+}
+
+// ── Формируем параметры ────────────────────────────
+function getParams() {
+  const brand = selectedBrand || document.getElementById('brand-input').value.trim();
+  const region = selectedRegion || document.getElementById('region-input').value.trim();
+
+  const params = {};
+  if (brand)  params.brand  = brand;
+  if (region) params.region = region;
+
+  const model = document.getElementById('model').value.trim();
+  if (model) params.model = model;
+
+  const yf = document.getElementById('year-from').value;
+  const yt = document.getElementById('year-to').value;
+  if (yf) params.year_from = parseInt(yf);
+  if (yt) params.year_to   = parseInt(yt);
+
+  const mf = document.getElementById('mileage-from').value;
+  const mt = document.getElementById('mileage-to').value;
+  if (mf) params.mileage_from = parseInt(mf);
+  if (mt) params.mileage_to   = parseInt(mt);
+
+  const pf = document.getElementById('price-from').value;
+  const pt = document.getElementById('price-to').value;
+  if (pf) params.price_from = parseInt(pf);
+  if (pt) params.price_to   = parseInt(pt);
+
+  return params;
+}
+
+// ── Поиск ──────────────────────────────────────────
+async function doSearch() {
+  const params = getParams();
+  if (!params.brand) {
+    showToast('Укажите марку автомобиля');
+    return;
+  }
+
+  // Сохраняем в историю
+  saveHistory(params);
+
+  showScreen('results');
+  document.getElementById('loader').classList.add('active');
+  document.getElementById('results-container').innerHTML = '';
+  document.getElementById('results-title').textContent = params.brand + (params.model ? ' ' + params.model : '');
+  document.getElementById('results-sub').textContent = 'Ищем на всех площадках...';
+
+  const btn = document.getElementById('search-btn');
+  btn.disabled = true;
+
+  try {
+    const apiBase = window.location.origin;
+    const resp = await fetch(apiBase + '/search', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(params),
+    });
+
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    allResults = data.results || [];
+
+    document.getElementById('loader').classList.remove('active');
+    document.getElementById('results-sub').textContent =
+      allResults.length > 0
+        ? `Найдено ${allResults.length} объявлений`
+        : 'Ничего не найдено';
+
+    renderResults('all');
+
+    // Добавляем монитор если включён
+    if (monitorEnabled && userId) {
+      try {
+        await fetch(apiBase + '/monitor/add', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({user_id: userId, params}),
+        });
+        showToast('🔔 Мониторинг включён!');
+      } catch(e) { console.warn('monitor add:', e); }
+    }
+
+  } catch(e) {
+    document.getElementById('loader').classList.remove('active');
+    document.getElementById('results-container').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">😔</div>' +
+      '<div class="empty-title">Ошибка поиска</div>' +
+      '<div class="empty-sub">Проверьте подключение к интернету и попробуйте снова</div></div>';
+  }
+
+  btn.disabled = false;
+}
+
+// ── Рендер результатов ─────────────────────────────
+function renderResults(filter) {
+  activeFilter = filter;
+  const cont = document.getElementById('results-container');
+
+  let items = allResults;
+  if (filter !== 'all') {
+    items = allResults.filter(r => r.source.toLowerCase().includes(filter));
+  }
+
+  if (items.length === 0) {
+    cont.innerHTML =
+      '<div class="empty-state"><div class="empty-icon">🔍</div>' +
+      '<div class="empty-title">Ничего не найдено</div>' +
+      '<div class="empty-sub">Попробуйте расширить параметры поиска — уберите ограничения по пробегу или году</div></div>';
+    return;
+  }
+
+  // Фильтры по источнику
+  const sources = [...new Set(allResults.map(r => r.source))];
+  let filterHtml = '<div class="results-header"><div class="results-count">' + items.length + ' объявлений</div>';
+  filterHtml += '<div class="source-filter">';
+  filterHtml += `<div class="src-btn ${filter==='all'?'active':''}" onclick="renderResults('all')">Все</div>`;
+  sources.forEach(s => {
+    const key = s.toLowerCase().replace('.','').replace(' ','');
+    filterHtml += `<div class="src-btn ${filter===key?'active':''}" onclick="renderResults('${key}')">${s}</div>`;
+  });
+  filterHtml += '</div></div>';
+
+  const cards = items.map(r => {
+    const srcClass = r.source.toLowerCase().includes('auto') ? 'autoru'
+                   : r.source.toLowerCase().includes('avito') ? 'avito' : 'drom';
+    const isFallback = r.title.startsWith('🔗');
+    return `
+    <a class="car-card" href="${r.url}" target="_blank">
+      <div class="car-card-top">
+        <div class="car-src-icon">${r.icon || '🚗'}</div>
+        <div class="car-main">
+          <div class="car-title">${escHtml(r.title)}</div>
+          <div class="car-meta">
+            <span class="src-badge ${srcClass}">${r.source}</span>
+            ${isFallback ? '<span style="font-size:11px;color:var(--text3)">открыть поиск</span>' : ''}
+          </div>
+        </div>
+        <div class="car-arrow">›</div>
+      </div>
+      <div class="car-price">${escHtml(r.price)}</div>
+    </a>`;
+  }).join('');
+
+  cont.innerHTML = filterHtml + cards;
+}
+
+// ── Мониторы ───────────────────────────────────────
+async function loadMonitors() {
+  if (!userId) {
+    document.getElementById('monitors-container').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">👤</div>' +
+      '<div class="empty-title">Войдите через Telegram</div>' +
+      '<div class="empty-sub">Мониторинг доступен только в Telegram</div></div>';
+    return;
+  }
+
+  try {
+    const resp = await fetch(window.location.origin + '/monitor/list/' + userId);
+    const data = await resp.json();
+    const monitors = data.monitors || [];
+
+    if (monitors.length === 0) {
+      document.getElementById('monitors-container').innerHTML =
+        '<div class="empty-state"><div class="empty-icon">🔔</div>' +
+        '<div class="empty-title">Нет активных мониторов</div>' +
+        '<div class="empty-sub">Сделайте поиск и включите мониторинг</div></div>';
+      return;
+    }
+
+    const html = monitors.map(m => {
+      const p = m.params || {};
+      const lines = [
+        p.brand   ? `<b>Марка:</b> ${p.brand}${p.model?' '+p.model:''}` : '',
+        (p.year_from||p.year_to) ? `<b>Год:</b> ${p.year_from||''}–${p.year_to||''}` : '',
+        (p.price_from||p.price_to) ? `<b>Цена:</b> ${p.price_from?fmtNum(p.price_from)+' ₽':''}–${p.price_to?fmtNum(p.price_to)+' ₽':''}` : '',
+        p.region  ? `<b>Регион:</b> ${p.region}` : '',
+      ].filter(Boolean);
+
+      return `
+      <div class="monitor-card">
+        <div class="monitor-card-title">🔔 ${p.brand||'Все'} ${p.model||''}</div>
+        <div class="monitor-card-params">${lines.join('<br>')}</div>
+        <div class="monitor-card-footer">
+          <div class="monitor-card-time">Создан: ${m.created_at||'—'} · Проверка: ${m.last_check||'ещё не было'}</div>
+          <button class="del-btn" onclick="deleteMonitor(${m.id})">✕ Удалить</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('monitors-container').innerHTML = html;
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+async function deleteMonitor(mid) {
+  if (!userId) return;
+  await fetch(`${window.location.origin}/monitor/${userId}/${mid}`, {method: 'DELETE'});
+  showToast('Монитор удалён');
+  loadMonitors();
+}
+
+// ── История ────────────────────────────────────────
+function saveHistory(params) {
+  const label = [params.brand, params.model, params.region].filter(Boolean).join(' · ');
+  history = [{label, params, date: new Date().toLocaleDateString('ru')}, ...history].slice(0, 20);
+  localStorage.setItem('search_history', JSON.stringify(history));
+}
+
+function renderHistory() {
+  if (history.length === 0) {
+    document.getElementById('history-container').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">🕐</div>' +
+      '<div class="empty-title">История пуста</div>' +
+      '<div class="empty-sub">Здесь появятся ваши прошлые запросы</div></div>';
+    return;
+  }
+
+  const html = history.map(h => `
+    <div class="history-item" onclick="restoreSearch(${escJson(h.params)})">
+      <div class="history-icon">🔍</div>
+      <div class="history-text">
+        <div class="history-query">${escHtml(h.label)}</div>
+        <div class="history-date">${h.date}</div>
+      </div>
+      <div class="history-arrow">›</div>
+    </div>`).join('');
+
+  document.getElementById('history-container').innerHTML = html;
+}
+
+function restoreSearch(params) {
+  // Восстанавливаем форму из истории
+  if (params.brand) {
+    selectedBrand = params.brand;
+    document.querySelectorAll('#brand-chips .chip').forEach(c => {
+      if (c.dataset.val === params.brand) c.classList.add('active');
+      else c.classList.remove('active');
+    });
+    document.getElementById('brand-input').value = '';
+  }
+  if (params.model)       document.getElementById('model').value        = params.model || '';
+  if (params.year_from)   document.getElementById('year-from').value    = params.year_from || '';
+  if (params.year_to)     document.getElementById('year-to').value      = params.year_to || '';
+  if (params.mileage_from)document.getElementById('mileage-from').value = params.mileage_from || '';
+  if (params.mileage_to)  document.getElementById('mileage-to').value   = params.mileage_to || '';
+  if (params.price_from)  document.getElementById('price-from').value   = params.price_from || '';
+  if (params.price_to)    document.getElementById('price-to').value     = params.price_to || '';
+  if (params.region) {
+    selectedRegion = params.region;
+    document.querySelectorAll('.region-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.val === params.region);
+    });
+  }
+  showScreen('search');
+}
+
+// ── Утилиты ────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escJson(obj) {
+  return "'" + JSON.stringify(obj).replace(/'/g, "\\'") + "'";
+}
+
+function fmtNum(n) {
+  return Number(n).toLocaleString('ru-RU');
+}
+
+// Адаптируем цвета под тему Telegram
+if (tg && tg.colorScheme === 'dark') {
+  document.documentElement.style.setProperty('--bg',   '#1c1c1e');
+  document.documentElement.style.setProperty('--bg2',  '#2c2c2e');
+  document.documentElement.style.setProperty('--bg3',  '#3a3a3c');
+  document.documentElement.style.setProperty('--text', '#ffffff');
+}
+</script>
+</body>
+</html>
